@@ -1,1 +1,50 @@
-something 
+[
+    {
+        "id": 1,
+        "prompt": "I go crazy for",
+        "type": "text",
+        "text": "oatmeal \ud83e\udd29\ud83d\udc9e\ud83d\ude29",
+        "user_updated": "2025-04-01 02:16:10.306673",
+        "created": "2025-04-01 02:16:10.306673"
+    },
+    {
+        "id": 2,
+        "prompt": "My simple pleasures",
+        "type": "text",
+        "text": "are coffee and a sweet treat \ud83d\ude0b",
+        "user_updated": "2025-04-01 02:56:20.069093",
+        "created": "2025-04-01 02:16:10.306673"
+    },
+    {
+        "id": 3,
+        "prompt": "Green flags I look for",
+        "type": "text",
+        "text": "likes oatmeal",
+        "user_updated": "2025-04-26 02:53:25.965323",
+        "created": "2025-04-26 02:53:25.965323"
+    },
+    {
+        "id": 4,
+        "prompt": "My simple pleasures",
+        "type": "text",
+        "text": "coffee and oatmeal \ud83d\ude0b",
+        "user_updated": "2025-04-26 02:53:25.965323",
+        "created": "2025-04-26 02:53:25.965323"
+    },
+    {
+        "id": 5,
+        "prompt": "Green flags I look for",
+        "type": "text",
+        "text": "plays an instrument \ud83c\udfb8\ud83c\udfb9",
+        "user_updated": "2025-04-26 02:53:26",
+        "created": "2025-04-01 02:16:10.306673"
+    },
+    {
+        "id": 6,
+        "prompt": "My simple pleasures",
+        "type": "text",
+        "text": "coffee and a sweet treat \ud83d\ude0b",
+        "user_updated": "2025-04-26 02:53:26",
+        "created": "2025-04-01 02:56:20.069093"
+    }
+]
