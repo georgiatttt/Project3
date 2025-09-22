@@ -25,6 +25,7 @@ import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
+from deepseek_enrichment import deepseek_analyze
 
 # third-party
 import pandas as pd
