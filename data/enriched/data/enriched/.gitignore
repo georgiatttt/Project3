@@ -1,0 +1,19 @@
+# Secrets / env
+.env
+*.env
+
+# Raw inputs (keep folder, ignore files)
+data/raw/*
+!data/raw/.gitkeep
+
+# Local caches
+dict_cache.json
+
+# Python noise
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
