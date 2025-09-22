@@ -158,7 +158,7 @@ for i, match in enumerate(data):
 df_all = pd.DataFrame(all_events)
 
 # Step 5: Save & download single CSV
-safe_write_csv(df_all, "hinge_all_events.csv")
+safe_write_csv(df_all, os.path.join(RAW_DIR, "hinge_all_events.csv"))
 #files.download("hinge_all_events.csv")
 
 print("✅ Exported single CSV: hinge_all_events.csv")
@@ -181,7 +181,7 @@ df_all['event_type'] = df_all['event_type'].astype(order)
 df_all_sorted = df_all.sort_values(['match_id','timestamp','event_type']).reset_index(drop=True)
 
 # 4) Save / replace
-safe_write_csv(df_all_sorted, "hinge_all_events_sorted.csv")
+safe_write_csv(df_all_sorted, os.path.join(RAW_DIR, "hinge_all_events_sorted.csv"))
 
 df_all_sorted.head()
 
@@ -200,8 +200,13 @@ STOPWORDS = {
 
 _cache_lock = Lock()
 
-DICT_CACHE_FN = os.path.join("data", "raw", "dict_cache.json")
-os.makedirs(os.path.dirname(DICT_CACHE_FN), exist_ok=True)
+# --- cache & data dirs (required) ---
+RAW_DIR = os.path.join("data", "raw")
+ENR_DIR = os.path.join("data", "enriched")
+os.makedirs(RAW_DIR, exist_ok=True)
+os.makedirs(ENR_DIR, exist_ok=True)
+
+DICT_CACHE_FN = os.path.join(RAW_DIR, "dict_cache.json")
 _dict_cache = safe_read_json(DICT_CACHE_FN, default={})
 
 
@@ -356,14 +361,14 @@ print(f"Dictionary cache size: {len(snapshot)}")
 '''
 
 # ---------- config ----------
-OUT_PATH     = "hinge_style_enrichment.csv"
+OUT_PATH = os.path.join(ENR_DIR, "hinge_style_enrichment.csv")
 SAMPLE_LEN   = 1200     # truncate convo text sent to DeepSeek
 MIN_CHARS    = 0       # don't skip extremely short convos
 FLUSH_EVERY  = 20       # checkpoint frequency
 THROTTLE_SEC = 0.35     # be nice to the API
 
 # ---------- build per-conversation text blocks ----------
-df = safe_read_csv("hinge_all_events_sorted.csv")
+df = safe_read_csv(os.path.join(RAW_DIR, "hinge_all_events_sorted.csv"))
 df_chat = df[df["event_type"] == "chat"].copy()
 df_chat = df_chat.sort_values(["match_id", "timestamp"])
 
@@ -383,6 +388,93 @@ done_ids = set()
 if not done_df.empty:
     done_ids = set(done_df["match_id"].astype(str))
     print(f"✔ Resume mode: found {len(done_ids)} completed rows in {OUT_PATH}")
+
+def build_dict_features(text: str) -> dict:
+    """Compute lexical features via dictionary lookups + stopwords."""
+    WORD_RE_LOCAL = re.compile(r"[a-zA-Z']+")
+    toks = [w.lower() for w in WORD_RE_LOCAL.findall(text or "")]
+    if not toks:
+        return {
+            "word_count": 0,
+            "unique_words": 0,
+            "pct_standard_words": None,
+            "slang_ratio": None,
+            "avg_defs_per_known_word": None,
+            "pos_share_noun": None,
+            "pos_share_verb": None,
+            "pos_share_adj": None,
+            "pos_share_adv": None,
+            "synonym_hit_rate": None,
+            "top_unknown_words": [],
+        }
+
+    vc = Counter(toks)
+    unique_words = len(vc)
+    found_cnt = 0
+    defs_total = 0
+    syn_hits = 0
+    pos_counter = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
+    unknown = []
+
+    for w, freq in vc.items():
+        if w in STOPWORDS:
+            found_cnt += 1
+            continue
+
+        info = _dict_cache.get(w)
+        if info is None:
+            info = dict_lookup(w)  # fills cache
+
+        if info.get("found"):
+            # summarize entry
+            defs = 0
+            pos = set()
+            has_syn = False
+            for entry in (info.get("data") or []):
+                for m in entry.get("meanings", []):
+                    if m.get("partOfSpeech"):
+                        pos.add(m["partOfSpeech"].lower())
+                    defs += len(m.get("definitions", []))
+                    if m.get("synonyms"):
+                        has_syn = True
+            found_cnt += 1
+            defs_total += defs
+            if has_syn:
+                syn_hits += 1
+            for p in pos:
+                if p.startswith("noun"):
+                    pos_counter["noun"] += 1
+                elif p.startswith("verb"):
+                    pos_counter["verb"] += 1
+                elif p.startswith("adject"):
+                    pos_counter["adjective"] += 1
+                elif p.startswith("adverb"):
+                    pos_counter["adverb"] += 1
+        else:
+            if len(w) > 1:
+                unknown.append((w, int(freq)))
+
+    pct_standard = found_cnt / unique_words if unique_words else None
+    slang_ratio = (1 - pct_standard) if pct_standard is not None else None
+    avg_defs = (defs_total / found_cnt) if found_cnt else None
+    syn_rate = (syn_hits / found_cnt) if found_cnt else None
+    pos_share = {k: (v / unique_words) for k, v in pos_counter.items()}
+    unknown.sort(key=lambda x: (-x[1], x[0]))
+    top_unknown = [w for w, _ in unknown[:10]]
+
+    return {
+        "word_count": int(sum(vc.values())),
+        "unique_words": int(unique_words),
+        "pct_standard_words": pct_standard,
+        "slang_ratio": slang_ratio,
+        "avg_defs_per_known_word": avg_defs,
+        "pos_share_noun": pos_share["noun"],
+        "pos_share_verb": pos_share["verb"],
+        "pos_share_adj": pos_share["adjective"],
+        "pos_share_adv": pos_share["adverb"],
+        "synonym_hit_rate": syn_rate,
+        "top_unknown_words": top_unknown,
+    }
 
 
 # ---------- helpers ----------
@@ -459,8 +551,9 @@ _dict_cache = safe_read_json(DICT_CACHE_FN, default={})
 
 # --- Recompute dictionary features only, then merge into the enriched CSV ---
 # Load existing outputs and events
-df_enriched = safe_read_csv("hinge_style_enrichment.csv")
-df_events   = safe_read_csv("hinge_all_events_sorted.csv")
+df_enriched = safe_read_csv(os.path.join(ENR_DIR, "hinge_style_enrichment.csv"))
+df_events   = safe_read_csv(os.path.join(RAW_DIR, "hinge_all_events_sorted.csv"))
+
 
 
 # Build per-conversation text
@@ -575,7 +668,7 @@ dict_cols = [
 df_v2 = df_enriched.drop(columns=[c for c in dict_cols if c in df_enriched.columns]) \
                    .merge(df_fix[["match_id"] + dict_cols], on="match_id", how="left")
 
-safe_write_csv(df_v2, "hinge_style_enrichment_v2.csv")
+safe_write_csv(df_v2, os.path.join(ENR_DIR, "hinge_style_enrichment_v2.csv"))
 print("✅ wrote hinge_style_enrichment_v2.csv")
 
 # Quick sanity check: none of these should appear in top_unknown_words anymore
