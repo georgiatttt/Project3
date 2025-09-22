@@ -1,9 +1,9 @@
 # Project3
-I used dictionaryapi.dev and DeepSeek to enhace a chat dataset downloaded from Hinge. 
+I used dictionaryapi.dev and DeepSeek to enhance a chat dataset downloaded from Hinge. 
 
 Notes on the process:
 
-Step 1. Dataset aquisition. I downloaded data from Hinge. All chat data is included in prompts.json. 
+Step 1. Dataset acquisition. I downloaded data from Hinge. All chat data is included in prompts.json. 
 
 Step 2. Data cleaning. I used pandas to covert the JSON file to a CSV file, then  ordered the rows by time (so the chats could be read in chronological order). 
 
