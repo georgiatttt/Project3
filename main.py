@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1xT1yX30il0jRsm377koSMQmfyY77ZG5U
 
 PLANNING
-Sources: data source (hinge json files), Hinge website
+Sources: data source (hinge json files), website
 
 Compare who you match with vs. who actually lives in your area.
 
