@@ -9,11 +9,6 @@ Original file is located at
 PLANNING
 Sources: data source (hinge json files), website
 
-Compare who you match with vs. who actually lives in your area.
-
-Search for insta handle
-Block
-
 STEP 1. Extract:
 """
 
